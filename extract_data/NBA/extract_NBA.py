@@ -18,9 +18,9 @@ array_data = np.load(os.path.join(current_dir, 'raw','nba_'+split+'.npy'))
 
 
 if args.split == 'train':
-    array_data = array_data[:32500]
+    array_data = array_data[:1500]
 elif args.split == 'test':
-    array_data = array_data[:12500] # extract the same samples as LED's dataloader_nba.py in https://drive.google.com/drive/folders/1NQffxbaEKeAa8pOjlmNqCdMzMmB68V04
+    array_data = array_data[:6000] # extract the same samples as LED's dataloader_nba.py in https://drive.google.com/drive/folders/1NQffxbaEKeAa8pOjlmNqCdMzMmB68V04
 elif args.split == 'val':
     array_data = array_data[32500:33500]
     val_size = array_data.shape[0]
@@ -31,7 +31,7 @@ else:
 if not os.path.exists(current_dir+'/'+'output_csv'+'/'):
     os.makedirs(current_dir+'/'+'output_csv'+'/')
 
-with open(os.path.join(current_dir,'output_csv','nba_'+args.split+'.csv'), 'w') as result:
+with open(os.path.join(current_dir,'output_csv','nba_'+args.split+'.csv'), 'w', newline='') as result:
     writer = csv.writer(result)
 
     num_batch = array_data.shape[0]
