@@ -102,3 +102,45 @@ This work is a follow-up work of Social-Transmotion:
     year={2024}
 }
 ```
+
+---
+
+## Reproduction notes and additional findings (fork by Santhosh335)
+
+I reproduced this paper's NBA results on a Windows laptop with no GPU, using the provided pretrained checkpoint for inference only. Getting there took a bit of debugging — two compatibility bugs in the original pipeline, both fixed in this fork below. I also ran a small follow-up study on evaluation-set size, described further down.
+
+### Reproduction result
+
+Using `FT_NBA_ckpt.pth.tar`, evaluated on 1,500 clips of NBA test data:
+
+| Metric | This reproduction | Paper (MinADE20 / MinFDE20) |
+|---|---|---|
+| ADE | 0.7442 | 0.75 |
+| FDE | 0.9584 | 0.97 |
+
+Close enough to the published numbers that I'm confident the pipeline is behaving correctly.
+
+### Two bug fixes (Windows / Python 3.11)
+
+The original code assumes a Linux environment and an older Python version, so running it on Windows with Python 3.11 surfaced two issues:
+
+1. **`extract_data/NBA/extract_NBA.py`** — the CSV writer opens its output file without `newline=''`. On Windows this causes every row to be double-line-terminated (`\r\r\n`), which the downstream converter reads as a blank row inserted between every real row. This showed up as a fairly cryptic `IndexError: list index out of range` a couple of steps downstream — took a bit of tracing to find the actual cause. Fixed by adding `newline=''` to the `open()` call.
+2. **`UniHuMotion_cache/utils/reader.py`** — `random.sample()` was called directly on a `dict_keys` view, which Python 3.9+ no longer allows (`TypeError: Population must be a sequence`). Fixed by wrapping it in `list(...)`.
+
+### Extra: how much test data do you actually need?
+
+I hit RAM limits on my laptop trying to convert the full ~32,500-clip test set (the conversion step loads everything into memory at once), so I ended up running on a reduced subset instead. That got me curious whether a smaller subset gives a meaningfully different ADE/FDE estimate, so I ran the same evaluation across 7 subset sizes:
+
+| Test clips | ADE | FDE |
+|---|---|---|
+| 100 | 0.7316 | 0.9112 |
+| 300 | 0.7566 | 0.9780 |
+| 600 | 0.7531 | 0.9559 |
+| 1,000 | 0.7439 | 0.9468 |
+| 1,500 | 0.7442 | 0.9584 |
+| 3,000 | 0.7542 | 0.9704 |
+| 6,000 | 0.7532 | 0.9668 |
+
+Across a 60x range in subset size, ADE stays within 0.7316-0.7566 and FDE within 0.9112-0.9780, with no obvious trend as the subset grows. Even 100 clips lands close to the paper's reported numbers. Basically, if you're compute-constrained like I was, a small subset seems to be enough to sanity-check this model - you probably don't need the full test set just to get a reasonable ADE/FDE reading.
+
+The script used for this (`run_subset_study.ps1` + `set_test_size.py`) is included in this fork.
